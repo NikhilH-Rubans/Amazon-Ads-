@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: rubans-ads-mcp
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: AMAZON_CLIENT_ID
+        value: amzn1.application-oa2-client.de8a5bed8b1e43daa99f3908f7691cf9
+      - key: AMAZON_PROFILE_ID
+        value: "1527605537702863"
