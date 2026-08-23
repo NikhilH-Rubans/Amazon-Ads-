@@ -71,17 +71,22 @@ function toV3States(stateFilter) {
   return stateFilter.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
 }
 
-async function pollReport(reportId, maxAttempts = 15) {
+async function pollReport(reportId, maxAttempts = 40) {
+  // Amazon's async reports commonly take 60-180s, longer for search term reports.
+  // 40 attempts x 5s = up to 200s, with a short initial delay before the first check.
+  await new Promise(r => setTimeout(r, 3000));
   for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(r => setTimeout(r, 4000));
     const status = await adsGet(`/reporting/reports/${reportId}`);
     if (status.status === "COMPLETED") {
       const data = await axios.get(status.url, { responseType: "json" });
       return data.data;
     }
-    if (status.status === "FAILURE") throw new Error("Report failed: " + JSON.stringify(status));
+    if (status.status === "FAILURE" || status.status === "CANCELLED") {
+      throw new Error("Report failed: " + JSON.stringify(status));
+    }
+    await new Promise(r => setTimeout(r, 5000));
   }
-  throw new Error("Report timed out");
+  throw new Error(`Report timed out after ${maxAttempts * 5}s (reportId: ${reportId}, check status manually via adsGet('/reporting/reports/${reportId}'))`);
 }
 
 function createServer() {
@@ -143,13 +148,13 @@ function createServer() {
         );
 
       } else if (name === "get_campaign_report") {
-        const r = await adsPost("/reporting/reports", { name: "Campaign report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["campaign"], columns: ["impressions","clicks","cost","purchases14d","sales14d","campaignName","campaignStatus","campaignBudget"], reportTypeId: "spCampaigns", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
+        const r = await adsPost("/reporting/reports", { name: "Campaign report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["campaign"], columns: ["date","campaignId","campaignName","campaignStatus","campaignBudgetAmount","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spCampaigns", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
         result = await pollReport(r.reportId);
       } else if (name === "get_keyword_report") {
-        const r = await adsPost("/reporting/reports", { name: "Keyword report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["targeting"], columns: ["impressions","clicks","cost","purchases14d","sales14d","keywordText","matchType"], reportTypeId: "spTargeting", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
+        const r = await adsPost("/reporting/reports", { name: "Keyword report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["targeting"], columns: ["date","campaignId","adGroupId","keywordId","keywordText","matchType","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spTargeting", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
         result = await pollReport(r.reportId);
       } else if (name === "get_search_term_report") {
-        const r = await adsPost("/reporting/reports", { name: "Search term report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["searchTerm"], columns: ["impressions","clicks","cost","purchases14d","sales14d","searchTerm"], reportTypeId: "spSearchTerm", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
+        const r = await adsPost("/reporting/reports", { name: "Search term report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["searchTerm"], columns: ["date","campaignId","adGroupId","keywordId","keywordText","matchType","searchTerm","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spSearchTerm", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
         result = await pollReport(r.reportId);
       } else {
         throw new Error(`Unknown tool: ${name}`);
