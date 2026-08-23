@@ -166,6 +166,12 @@ function createServer() {
         const r = await adsPost("/reporting/reports", { name: "Search term report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["searchTerm"], columns: ["startDate","endDate","campaignId","adGroupId","keywordId","keyword","matchType","searchTerm","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spSearchTerm", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
         result = await pollReport(r.reportId);
 
+      } else if (name === "get_advertised_product_report") {
+        // ASIN-level performance - joins spend/sales/clicks to the actual product advertised.
+        // Needed for SKU-level, category, and ASP-band analysis that campaign/keyword reports can't provide.
+        const r = await adsPost("/reporting/reports", { name: "Advertised product report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["advertiser"], columns: ["startDate","endDate","campaignId","campaignName","adGroupId","adGroupName","advertisedAsin","advertisedSku","impressions","clicks","cost","purchases14d","sales14d","unitsSoldClicks14d"], reportTypeId: "spAdvertisedProduct", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
+        result = await pollReport(r.reportId);
+
       } else if (name === "get_report_by_id") {
         // Checks a specific report's status. If already COMPLETED, fetches its data
         // directly - never triggers a new report generation.
