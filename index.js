@@ -4,6 +4,14 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import axios from "axios";
 import express from "express";
+import zlib from "zlib";
+
+// Fetches a report file URL, decompresses the gzip body, and parses the JSON inside.
+async function fetchReportFile(url) {
+  const res = await axios.get(url, { responseType: "arraybuffer" });
+  const decompressed = zlib.gunzipSync(res.data);
+  return JSON.parse(decompressed.toString("utf-8"));
+}
 
 // SECURITY: no hardcoded fallbacks. Set these in Render's Environment tab.
 const CLIENT_ID     = process.env.AMAZON_CLIENT_ID;
@@ -78,8 +86,7 @@ async function pollReport(reportId, maxAttempts = 178) {
   for (let i = 0; i < maxAttempts; i++) {
     const status = await adsGet(`/reporting/reports/${reportId}`);
     if (status.status === "COMPLETED") {
-      const data = await axios.get(status.url, { responseType: "json" });
-      return data.data;
+      return await fetchReportFile(status.url);
     }
     if (status.status === "FAILURE" || status.status === "CANCELLED") {
       throw new Error("Report failed: " + JSON.stringify(status));
@@ -163,8 +170,8 @@ function createServer() {
         // directly - never triggers a new report generation.
         const status = await adsGet(`/reporting/reports/${args.reportId}`);
         if (status.status === "COMPLETED" && status.url) {
-          const data = await axios.get(status.url, { responseType: "json" });
-          result = { reportStatus: status.status, data: data.data };
+          const data = await fetchReportFile(status.url);
+          result = { reportStatus: status.status, data };
         } else {
           result = { reportStatus: status.status, detail: status };
         }
