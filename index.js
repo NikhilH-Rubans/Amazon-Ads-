@@ -111,6 +111,7 @@ function createServer() {
       { name: "get_campaign_report", description: "Get campaign performance report (YYYYMMDD dates)", inputSchema: { type: "object", properties: { startDate: { type: "string" }, endDate: { type: "string" } }, required: ["startDate", "endDate"] } },
       { name: "get_keyword_report", description: "Get keyword performance report (YYYYMMDD dates)", inputSchema: { type: "object", properties: { startDate: { type: "string" }, endDate: { type: "string" } }, required: ["startDate", "endDate"] } },
       { name: "get_search_term_report", description: "Get search term performance report (YYYYMMDD dates)", inputSchema: { type: "object", properties: { startDate: { type: "string" }, endDate: { type: "string" } }, required: ["startDate", "endDate"] } },
+      { name: "get_advertised_product_report", description: "Get ASIN-level advertised product performance report - spend, sales, clicks, purchases per product (YYYYMMDD dates)", inputSchema: { type: "object", properties: { startDate: { type: "string" }, endDate: { type: "string" } }, required: ["startDate", "endDate"] } },
       { name: "get_report_by_id", description: "Check status of a specific report by ID, and pull its data if already completed (no new report is generated)", inputSchema: { type: "object", properties: { reportId: { type: "string" } }, required: ["reportId"] } },
     ]
   }));
