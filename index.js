@@ -71,10 +71,10 @@ function toV3States(stateFilter) {
   return stateFilter.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
 }
 
-async function pollReport(reportId, maxAttempts = 40) {
-  // Amazon's async reports commonly take 60-180s, longer for search term reports.
-  // 40 attempts x 5s = up to 200s, with a short initial delay before the first check.
-  await new Promise(r => setTimeout(r, 3000));
+async function pollReport(reportId, maxAttempts = 178) {
+  // Amazon's async reports can take 15+ minutes to generate.
+  // 178 attempts x 5s + 10s initial delay = ~15 minutes total.
+  await new Promise(r => setTimeout(r, 10000));
   for (let i = 0; i < maxAttempts; i++) {
     const status = await adsGet(`/reporting/reports/${reportId}`);
     if (status.status === "COMPLETED") {
@@ -86,7 +86,7 @@ async function pollReport(reportId, maxAttempts = 40) {
     }
     await new Promise(r => setTimeout(r, 5000));
   }
-  throw new Error(`Report timed out after ${maxAttempts * 5}s (reportId: ${reportId}, check status manually via adsGet('/reporting/reports/${reportId}'))`);
+  throw new Error(`Report timed out after 15 minutes (reportId: ${reportId}, check status manually via adsGet('/reporting/reports/${reportId}'))`);
 }
 
 function createServer() {
