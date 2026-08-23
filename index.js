@@ -148,13 +148,13 @@ function createServer() {
         );
 
       } else if (name === "get_campaign_report") {
-        const r = await adsPost("/reporting/reports", { name: "Campaign report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["campaign"], columns: ["date","campaignId","campaignName","campaignStatus","campaignBudgetAmount","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spCampaigns", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
+        const r = await adsPost("/reporting/reports", { name: "Campaign report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["campaign"], columns: ["startDate","endDate","campaignId","campaignName","campaignStatus","campaignBudgetAmount","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spCampaigns", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
         result = await pollReport(r.reportId);
       } else if (name === "get_keyword_report") {
-        const r = await adsPost("/reporting/reports", { name: "Keyword report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["targeting"], columns: ["date","campaignId","adGroupId","keywordId","keywordText","matchType","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spTargeting", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
+        const r = await adsPost("/reporting/reports", { name: "Keyword report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["targeting"], columns: ["startDate","endDate","campaignId","adGroupId","keywordId","keywordText","matchType","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spTargeting", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
         result = await pollReport(r.reportId);
       } else if (name === "get_search_term_report") {
-        const r = await adsPost("/reporting/reports", { name: "Search term report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["searchTerm"], columns: ["date","campaignId","adGroupId","keywordId","keywordText","matchType","searchTerm","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spSearchTerm", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
+        const r = await adsPost("/reporting/reports", { name: "Search term report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["searchTerm"], columns: ["startDate","endDate","campaignId","adGroupId","keywordId","keywordText","matchType","searchTerm","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spSearchTerm", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
         result = await pollReport(r.reportId);
       } else {
         throw new Error(`Unknown tool: ${name}`);
