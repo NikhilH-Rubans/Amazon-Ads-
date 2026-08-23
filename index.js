@@ -104,6 +104,8 @@ function createServer() {
       { name: "get_campaign_report", description: "Get campaign performance report (YYYYMMDD dates)", inputSchema: { type: "object", properties: { startDate: { type: "string" }, endDate: { type: "string" } }, required: ["startDate", "endDate"] } },
       { name: "get_keyword_report", description: "Get keyword performance report (YYYYMMDD dates)", inputSchema: { type: "object", properties: { startDate: { type: "string" }, endDate: { type: "string" } }, required: ["startDate", "endDate"] } },
       { name: "get_search_term_report", description: "Get search term performance report (YYYYMMDD dates)", inputSchema: { type: "object", properties: { startDate: { type: "string" }, endDate: { type: "string" } }, required: ["startDate", "endDate"] } },
+      { name: "list_reports", description: "List recently requested/generated reports (to check status or reuse without re-triggering generation)", inputSchema: { type: "object", properties: { count: { type: "number", default: 50 } } } },
+      { name: "get_report_by_id", description: "Check status of a specific report by ID, and pull its data if already completed (no new report is generated)", inputSchema: { type: "object", properties: { reportId: { type: "string" } }, required: ["reportId"] } },
     ]
   }));
 
@@ -156,6 +158,23 @@ function createServer() {
       } else if (name === "get_search_term_report") {
         const r = await adsPost("/reporting/reports", { name: "Search term report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["searchTerm"], columns: ["startDate","endDate","campaignId","adGroupId","keywordId","keywordText","matchType","searchTerm","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spSearchTerm", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
         result = await pollReport(r.reportId);
+
+      } else if (name === "list_reports") {
+        // Lists recently requested reports without creating a new one, so completed
+        // reports can be reused instead of hitting Amazon's duplicate-request guard.
+        result = await adsGet("/reporting/reports", { count: args?.count || 50 });
+
+      } else if (name === "get_report_by_id") {
+        // Checks a specific report's status. If already COMPLETED, fetches its data
+        // directly - never triggers a new report generation.
+        const status = await adsGet(`/reporting/reports/${args.reportId}`);
+        if (status.status === "COMPLETED" && status.url) {
+          const data = await axios.get(status.url, { responseType: "json" });
+          result = { reportStatus: status.status, data: data.data };
+        } else {
+          result = { reportStatus: status.status, detail: status };
+        }
+
       } else {
         throw new Error(`Unknown tool: ${name}`);
       }
