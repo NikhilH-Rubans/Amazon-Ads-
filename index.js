@@ -5,12 +5,18 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import axios from "axios";
 import express from "express";
 
-const CLIENT_ID     = process.env.AMAZON_CLIENT_ID     || "amzn1.application-oa2-client.de8a5bed8b1e43daa99f3908f7691cf9";
-const CLIENT_SECRET = process.env.AMAZON_CLIENT_SECRET || "amzn1.oa2-cs.v1.008c7a7c42e83bcce1b0a05b6c3db4392216a0a7022e6b5c8c0cf530d06e6977";
-const REFRESH_TOKEN = process.env.AMAZON_REFRESH_TOKEN || "Atzr|IwEBIHt3YahpiyyJazgF4pLRVHG4aqU4klbZiQ1VcqVtmKB-9Q1dqvFNT-M62acdCP_4WC8wNB0NyidosUFwleA7WP5zZGO6DcC8HzOjJ11V-YVEwSu62I5xmHfnWE_Kw0MMnq5Bh-R44lNEVu28wHwCc0A4HFZcU_zqiJC7trfN43bOAzbxIXaFRXtGV0cR-V0qgVsjPGN4m_35vBX5wK2K5KB6wVpSmCZv_SW65KsrB4oK8Jn_iZ4fkwsqkYWhiIxTkpPRYFdESg0O3NBYNvbWY1DjeCMeTucCKTTEGF8RFEO0RcNbX1uPpAs0dBfjOwOxeKfBUrQyeOjH0xvc5rUXljL2vq69x8225ZAaZGMgTgNukVv3NdNVcXPUoqcP6PfXUFqpBQJ0e01qfUaNW3dFgTKV101k-c0ffK5XSHpoKsJCU2DVTcgtNxyqT7DQf2in8JYzt0SjHrf_bxEURPd6IlzPqTvg8gZ_IkY-yDo6QnbxeGLNhk2n5s0mZ1CkqODsnvRuVSq_zWdgoGc_GE-8EvjM6db_-UfOog3ITliRDQE6WHkfFL1wZ9r200ik9qSfXIvfiiOINgO2BVtEmnl2B_O6";
-const PROFILE_ID    = process.env.AMAZON_PROFILE_ID    || "1527605537702863";
+// SECURITY: no hardcoded fallbacks. Set these in Render's Environment tab.
+const CLIENT_ID     = process.env.AMAZON_CLIENT_ID;
+const CLIENT_SECRET = process.env.AMAZON_CLIENT_SECRET;
+const REFRESH_TOKEN = process.env.AMAZON_REFRESH_TOKEN;
+const PROFILE_ID    = process.env.AMAZON_PROFILE_ID || "1527605537702863";
 const API_BASE      = "https://advertising-api-eu.amazon.com";
 const PORT          = process.env.PORT || 3000;
+
+if (!CLIENT_ID || !CLIENT_SECRET || !REFRESH_TOKEN) {
+  console.error("Missing required env vars: AMAZON_CLIENT_ID, AMAZON_CLIENT_SECRET, AMAZON_REFRESH_TOKEN");
+  process.exit(1);
+}
 
 let cachedToken = null;
 let tokenExpiry = 0;
@@ -41,6 +47,28 @@ async function adsPost(path, body = {}) {
     headers: { Authorization: `Bearer ${token}`, "Amazon-Advertising-API-ClientId": CLIENT_ID, "Amazon-Advertising-API-Scope": PROFILE_ID, "Content-Type": "application/json" },
   });
   return res.data;
+}
+
+// v3 Sponsored Products endpoints need specific vendor content-type/accept headers
+async function adsPostV3(path, body, contentType) {
+  const token = await getAccessToken();
+  const res = await axios.post(`${API_BASE}${path}`, body, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Amazon-Advertising-API-ClientId": CLIENT_ID,
+      "Amazon-Advertising-API-Scope": PROFILE_ID,
+      "Content-Type": contentType,
+      "Accept": contentType,
+    },
+  });
+  return res.data;
+}
+
+// map old lowercase comma-separated stateFilter (e.g. "enabled,paused") to v3 uppercase array
+function toV3States(stateFilter) {
+  const defaultStates = ["ENABLED", "PAUSED"];
+  if (!stateFilter) return defaultStates;
+  return stateFilter.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
 }
 
 async function pollReport(reportId, maxAttempts = 15) {
@@ -80,12 +108,40 @@ function createServer() {
       let result;
       if (name === "get_profile") {
         result = await adsGet("/v2/profiles");
+
       } else if (name === "get_campaigns") {
-        result = await adsGet("/v2/sp/campaigns", { stateFilter: args?.stateFilter || "enabled,paused", count: 500 });
+        // v3 Sponsored Products campaigns - POST /sp/campaigns/list
+        result = await adsPostV3(
+          "/sp/campaigns/list",
+          {
+            stateFilter: { include: toV3States(args?.stateFilter) },
+            maxResults: 500,
+          },
+          "application/vnd.spCampaign.v3+json"
+        );
+
       } else if (name === "get_ad_groups") {
-        result = await adsGet("/v2/sp/adGroups", { stateFilter: args?.stateFilter || "enabled,paused", count: 500 });
+        // v3 Sponsored Products ad groups - POST /sp/adGroups/list
+        result = await adsPostV3(
+          "/sp/adGroups/list",
+          {
+            stateFilter: { include: toV3States(args?.stateFilter) },
+            maxResults: 500,
+          },
+          "application/vnd.spAdGroup.v3+json"
+        );
+
       } else if (name === "get_keywords") {
-        result = await adsGet("/v2/sp/keywords", { stateFilter: args?.stateFilter || "enabled,paused", count: 5000 });
+        // v3 Sponsored Products keywords - POST /sp/keywords/list
+        result = await adsPostV3(
+          "/sp/keywords/list",
+          {
+            stateFilter: { include: toV3States(args?.stateFilter) },
+            maxResults: 1000, // v3 caps at 1000 per page; pagination via nextToken not yet implemented
+          },
+          "application/vnd.spKeyword.v3+json"
+        );
+
       } else if (name === "get_campaign_report") {
         const r = await adsPost("/reporting/reports", { name: "Campaign report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["campaign"], columns: ["impressions","clicks","cost","purchases14d","sales14d","campaignName","campaignStatus","campaignBudget"], reportTypeId: "spCampaigns", timeUnit: "SUMMARY", format: "GZIP_JSON" } });
         result = await pollReport(r.reportId);
