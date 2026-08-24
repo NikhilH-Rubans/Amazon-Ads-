@@ -163,7 +163,7 @@ function createServer() {
         const r = await adsPost("/reporting/reports", { name: "Keyword report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["targeting"], columns: ["date","campaignId","adGroupId","keywordId","keyword","matchType","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spTargeting", timeUnit: "DAILY", format: "GZIP_JSON" } });
         result = await pollReport(r.reportId);
       } else if (name === "get_search_term_report") {
-        const r = await adsPost("/reporting/reports", { name: "Search term report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["searchTerm"], columns: ["date","campaignId","adGroupId","keywordId","keyword","matchType","searchTerm","impressions","clicks","cost","purchases14d","sales14d"], reportTypeId: "spSearchTerm", timeUnit: "DAILY", format: "GZIP_JSON" } });
+        const r = await adsPost("/reporting/reports", { name: "Search term report", startDate: args.startDate, endDate: args.endDate, configuration: { adProduct: "SPONSORED_PRODUCTS", groupBy: ["searchTerm"], columns: ["date","campaignId","campaignName","campaignEndDate","adGroupId","adGroupName","advertisedAsin","advertisedSku","advertisedProductMarketplace","searchTerm","keyword","keywordId","matchType","targetingText","targetId","targetingExpression","budgetCurrency","targetStatus","impressions","clicks","cost","addToCart","purchases14d","sales14d"], reportTypeId: "spSearchTerm", timeUnit: "DAILY", format: "GZIP_JSON" } });
         result = await pollReport(r.reportId);
 
       } else if (name === "get_advertised_product_report") {
